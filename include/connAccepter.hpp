@@ -7,7 +7,6 @@
 #include <netinet/in.h>
 #include <unistd.h>
 #include <utility>
-#include <fcntl.h>
 
 class connAccepter {
 public:
@@ -25,10 +24,6 @@ connAccepter::connAccepter(uint16_t workPort, int listenNum)
     if (listenFd == -1) {
         throw std::runtime_error("socket() error in constructor of connAccepter.");
     }
-
-    int flag {fcntl(listenFd, F_GETFL)};
-    flag |= O_NONBLOCK;
-    fcntl(listenFd, F_SETFL, flag);
 
     sockaddr_in listenAddr {};
     bzero(&listenAddr, sizeof(listenAddr));

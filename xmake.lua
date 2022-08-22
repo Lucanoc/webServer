@@ -7,11 +7,11 @@ target("httpServer")
 
     add_includedirs(
         "include",
-        "/home/lucanou/WorkSpace/Packages/coost/include"
+        "/home/lucanou/Space/Packages/coost/include"
     )
 
     add_linkdirs(
-        "/home/lucanou/WorkSpace/Packages/coost/relase/src"
+        "/home/lucanou/Space/Packages/coost/release/src"
     )
 
     add_ldflags(
