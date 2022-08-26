@@ -1,7 +1,6 @@
 #pragma once
 
-#include "co/log.h"
-#include <asm-generic/errno-base.h>
+#include <bits/types/FILE.h>
 #include <cerrno>
 #include <chrono>
 #include <cstddef>
@@ -10,6 +9,8 @@
 #include <fcntl.h>
 #include <iostream>
 #include <fstream>
+#include <map>
+#include <sstream>
 #include <string>
 #include <sys/socket.h>
 #include <sys/types.h>
@@ -18,37 +19,25 @@
 #include <filesystem>
 #include <sys/sendfile.h>
 
-constexpr size_t maxBufferSize {2048};
+constexpr ssize_t maxRecvSize {128};
 
 class httpWorkder {
 public:
-    enum class workStatus : uint8_t {
-        waiting,
-        connOver,
-        recvErr,
-        recvFinish,
-        sendErr,
-        sendFinish,
-        methodErr
-    };
-
     ~httpWorkder();
-
     explicit httpWorkder(int workSocket_);
 
-    auto recv() -> workStatus;
-    auto send() -> workStatus;
-
+    void run();
 private:
-    void analyse(char * buffer, ssize_t useLen);
-    void disAnalyse();
+    void recv();
+    void getUrl(char const * buffer);
 
-    auto sendDir() -> workStatus;
-    auto sendFile() -> workStatus;
+    void send();
+    void sendHttpHead();
+    void sendHtml();
 
     int workSocket;
-    workStatus status;
-    std::filesystem::path filePath;
+    std::string filePath;
+    bool working;
 };
 
 inline
@@ -58,109 +47,112 @@ httpWorkder::~httpWorkder() {
 
 inline
 httpWorkder::httpWorkder(int workSocket_)
-: workSocket(workSocket_), status(workStatus::waiting) {}
+: workSocket(workSocket_), filePath("index.html"), working(false) {}
 
 inline
-auto httpWorkder::recv() -> httpWorkder::workStatus {
-    char buffer[maxBufferSize] {};
-    ssize_t useLen {};
+void httpWorkder::run() {
+    recv();
+
+    std::cout << "\n ready to send()\n";
+
+    std::cout << "working: " << working << '\n';
+
+    if (working) {
+        send();
+    }
+
+    std::cout << "\nfinish sending!\n";
+}
+
+inline
+void httpWorkder::recv() {
+    char buffer[maxRecvSize] {};
     ssize_t recvLen {};
+    ssize_t eachLen {};
 
-    while ((recvLen = ::recv(workSocket, buffer + useLen, maxBufferSize, 0) != 0)) {
-        if (recvLen == -1) {
+    while ((eachLen = ::recv(workSocket, buffer + recvLen, maxRecvSize, 0)) != 0) {
+        if (eachLen == -1) {
             if (errno == EAGAIN) {
-                status = workStatus::recvFinish;
+               continue;
             } else {
-                status = workStatus::recvErr;
+                break;
             }
+        }
+
+        recvLen += eachLen;
+
+        if (recvLen > maxRecvSize - 1) {
+            working = true;
 
             break;
         }
-
-        useLen += recvLen;
-
-        if (maxBufferSize < useLen) {
-            status = workStatus::recvFinish;
-
-            break;
-        }
     }
 
-    LOG << "socket: " << workSocket << " recv() over";
+    buffer[maxRecvSize - 1] = '\0';
 
-    if (status == workStatus::recvFinish) {
-        analyse(buffer, useLen);
+    std::cout << buffer << '\n';
+
+    if (working) {
+        getUrl(buffer);
     }
-
-    if (status == workStatus::waiting) {
-        status = workStatus::connOver;
-    }
-
-    return status;
 }
 
 inline
-auto httpWorkder::send() -> httpWorkder::workStatus {
-    return std::filesystem::is_directory(filePath) ? sendDir() : sendFile();
-}
-
-inline
-void httpWorkder::analyse(char * buffer, ssize_t useLen) {
-
-    LOG << "socket: " << workSocket << " useLen: " << useLen <<" analysed!";
-
+void httpWorkder::getUrl(char const * buffer) {
     char method[8] {};
-    char url[128] {};
-    char version[8] {};
+    char url[64] {};
 
-    //GET /etc/apt/sources.txt HTTP/1.1
-    sscanf(buffer, "%[^ ] %[^ ] %s", method, url, version);
+    sscanf(buffer, "%[^ ] /%[^ ]", method, url);
 
     if (strcmp(method, "GET") != 0 && strcmp(method, "get") != 0) {
-        status = workStatus::methodErr;
-
         return;
     }
 
-    filePath = "." + std::string(url);
-}
-
-inline
-auto httpWorkder::sendDir() -> httpWorkder::workStatus {
-    
-
-    return status;
-}
-
-inline
-auto httpWorkder::sendFile() -> httpWorkder::workStatus {
-    // std::string buffer;
-
-    // std::ifstream ifs(filePath);
-
-    // if (!ifs.is_open()) {
-    //     status = workStatus::sendErr;
-    // } else {
-    //     while (ifs >> buffer) {
-    //         ::send(workSocket, buffer.c_str(), buffer.size(), 0);
-
-    //         std::this_thread::sleep_for(std::chrono::microseconds(1));
-    //     }
-
-    //     status = workStatus::sendFinish;
-    // }
-
-    int srcFd {::open(filePath.c_str(), O_RDONLY)};
-
-    if (srcFd < 0) {
-        status = workStatus::sendErr;
+    if (std::filesystem::exists(url)) {
+        filePath = url;
     } else {
-         __off_t srcSize {::lseek(srcFd, 0, SEEK_END)};
-
-        ::sendfile(workSocket, srcFd, nullptr, srcSize);
-
-        status = workStatus::sendFinish;
+        if (strcmp(url, "") != 0) {
+            filePath = "404.html";
+        }
     }
 
-    return status;
+    std::cout << "want url is : " << filePath << '\n';
+}
+
+inline
+void httpWorkder::send() {
+    sendHttpHead();
+    sendHtml();
+}
+
+inline
+void httpWorkder::sendHttpHead () {
+    std::stringstream buffer;
+
+    buffer << "HTTP/1.1 ";
+    buffer << (filePath == "404.html" ? "404 Not Found\r\n" : "200 OK\r\n");
+    buffer << "content-length: " << -1 << " \r\n";
+    buffer << "\r\n";
+
+    ::send(workSocket, buffer.str().c_str(), buffer.str().size(), 0);
+    std::cout << "\nsendHttpHead " << buffer.str() << '\n';
+}
+
+inline
+void httpWorkder::sendHtml() {
+    int srcFd {::open(filePath.c_str(), O_RDONLY)};
+
+    __off_t srcSize {::lseek(srcFd, 0, SEEK_END)};
+    ::lseek(srcFd, 0, SEEK_SET);
+
+    std::cout << '\n' << srcFd << ' ' << srcSize << '\n';
+    std::cout << errno << '\n';
+
+    off_t offSet {};
+
+    while (offSet < srcSize) {
+        std::cout << ::sendfile(workSocket, srcFd, &offSet, srcSize) << '\n';
+    }
+
+    close(srcFd);
 }

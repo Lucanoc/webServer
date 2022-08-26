@@ -1,5 +1,7 @@
 #pragma once
 
+#include <asm-generic/socket.h>
+#include <fcntl.h>
 #include <stdexcept>
 #include <strings.h>
 #include <sys/socket.h>
@@ -13,7 +15,7 @@ public:
     explicit connAccepter(uint16_t workPort, int listenNum = 5);
 
     auto getListenFd() const -> int;
-    auto accept() -> std::pair<int, sockaddr_in>;
+    auto accept(bool isBlock = true) -> std::pair<int, sockaddr_in>;
 private:
     int listenFd;
 };
@@ -46,7 +48,7 @@ auto connAccepter::getListenFd() const -> int {
 }
 
 inline
-auto connAccepter::accept() -> std::pair<int, sockaddr_in> {
+auto connAccepter::accept(bool isBlock) -> std::pair<int, sockaddr_in> {
     std::pair<int, sockaddr_in> sockInfo;
     socklen_t addrLen;
 
@@ -54,6 +56,16 @@ auto connAccepter::accept() -> std::pair<int, sockaddr_in> {
 
     if (sockInfo.first == -1) {
         throw std::runtime_error("accept() error in connAccepter.");
+    }
+
+    int value {1};
+
+    setsockopt(sockInfo.first, SOL_SOCKET, SO_REUSEADDR, &value, sizeof(value));
+
+    if (!isBlock) {
+        int flag {fcntl(sockInfo.first, F_GETFL)};
+        flag |= O_NONBLOCK;
+        fcntl(sockInfo.first, F_SETFL, flag);
     }
 
     return sockInfo;
