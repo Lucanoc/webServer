@@ -1,8 +1,6 @@
 #pragma once
 
-#include <bits/types/FILE.h>
 #include <cerrno>
-#include <chrono>
 #include <cstddef>
 #include <cstdio>
 #include <cstring>
@@ -38,6 +36,20 @@ private:
     int workSocket;
     std::string filePath;
     bool working;
+    bool httpOk;
+
+    inline static std::string const badReq {
+        "HTTP/1.1 404 Not Found\r\n"
+        "content-type: text/html; charset=utf-8\r\n"
+        "content-length: -1\r\n"
+        "\r\n"
+    };
+    inline static std::string const okReq {
+        "HTTP/1.1 200 OK\r\n"
+        "content-type: text/html; charset=utf-8\r\n"
+        "content-length: -1\r\n"
+        "\r\n"
+    };
 };
 
 inline
@@ -47,21 +59,15 @@ httpWorkder::~httpWorkder() {
 
 inline
 httpWorkder::httpWorkder(int workSocket_)
-: workSocket(workSocket_), filePath("index.html"), working(false) {}
+: workSocket(workSocket_), filePath("index.html"), working(false), httpOk(true) {}
 
 inline
 void httpWorkder::run() {
     recv();
 
-    std::cout << "\n ready to send()\n";
-
-    std::cout << "working: " << working << '\n';
-
     if (working) {
         send();
     }
-
-    std::cout << "\nfinish sending!\n";
 }
 
 inline
@@ -90,8 +96,6 @@ void httpWorkder::recv() {
 
     buffer[maxRecvSize - 1] = '\0';
 
-    std::cout << buffer << '\n';
-
     if (working) {
         getUrl(buffer);
     }
@@ -113,10 +117,10 @@ void httpWorkder::getUrl(char const * buffer) {
     } else {
         if (strcmp(url, "") != 0) {
             filePath = "404.html";
+            
+            httpOk = false;
         }
     }
-
-    std::cout << "want url is : " << filePath << '\n';
 }
 
 inline
@@ -127,32 +131,24 @@ void httpWorkder::send() {
 
 inline
 void httpWorkder::sendHttpHead () {
-    std::stringstream buffer;
-
-    buffer << "HTTP/1.1 ";
-    buffer << (filePath == "404.html" ? "404 Not Found\r\n" : "200 OK\r\n");
-    buffer << "content-length: " << -1 << " \r\n";
-    buffer << "\r\n";
-
-    ::send(workSocket, buffer.str().c_str(), buffer.str().size(), 0);
-    std::cout << "\nsendHttpHead " << buffer.str() << '\n';
+    ::send(workSocket, 
+    httpOk ? okReq.c_str() : badReq.c_str(), 
+    httpOk ? okReq.size() : badReq.size(), 
+    0);
 }
 
 inline
 void httpWorkder::sendHtml() {
-    int srcFd {::open(filePath.c_str(), O_RDONLY)};
+    int htmlFile {::open(filePath.c_str(), O_RDONLY)};
 
-    __off_t srcSize {::lseek(srcFd, 0, SEEK_END)};
-    ::lseek(srcFd, 0, SEEK_SET);
-
-    std::cout << '\n' << srcFd << ' ' << srcSize << '\n';
-    std::cout << errno << '\n';
+    __off_t srcSize {::lseek(htmlFile, 0, SEEK_END)};
+    ::lseek(htmlFile, 0, SEEK_SET);
 
     off_t offSet {};
 
     while (offSet < srcSize) {
-        std::cout << ::sendfile(workSocket, srcFd, &offSet, srcSize) << '\n';
+        ::sendfile(workSocket, htmlFile, &offSet, srcSize);
     }
 
-    close(srcFd);
+    close(htmlFile);
 }

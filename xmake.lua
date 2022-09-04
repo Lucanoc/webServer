@@ -6,19 +6,19 @@ target("httpServer")
     add_files("src/*.cpp")
 
     add_includedirs(
-        "include",
-        "/home/lucanon/Space/Packages/coost/include"
+        "include"
+    --    "/home/lucanon/Space/Packages/coost/include"
     )
 
-    add_linkdirs(
-        "/home/lucanon/Space/Packages/coost/release/src"
-    )
+    --add_linkdirs(
+    --    "/home/lucanon/Space/Packages/coost/release/src"
+    --)
 
-    add_ldflags(
-        "-lco",
-        "-lbacktrace",
-        {force = true}
-    )
+    --add_ldflags(
+    --    "-lco",
+    --    "-lbacktrace",
+    --    {force = true}
+    --)
 target_end()
 
 set_languages("cxx20")

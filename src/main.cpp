@@ -1,3 +1,4 @@
+#include "epollWorker.hpp"
 #include "httpWorker.hpp"
 #include "connAccepter.hpp"
 #include <asm-generic/errno-base.h>
@@ -21,51 +22,60 @@ auto main(int argc, char const ** argv) -> int {
 
     chdir(argv[2]);
 
-    //connAccepter ca(atoi(argv[1]));
+    epollWorker(atoi(argv[1])).run();
 
-    int sock {socket(PF_INET, SOCK_STREAM, 0)};
+    // connAccepter connAc(atoi(argv[1]));
 
-        if (sock == -1) {
-            std::cerr << "socket() error";
+    // while (true) {
+    //     std::pair<int, sockaddr_in> sockInfo(connAc.accept(false));
 
-            return 0;
-        }
+    //     httpWorkder(sockInfo.first).run();
+    // }
 
-        sockaddr_in sockAddr;
-        bzero(&sockAddr, sizeof(sockAddr));
-        sockAddr.sin_family = AF_INET;
-        sockAddr.sin_port = htons(atoi(argv[1]));
-        sockAddr.sin_addr.s_addr = INADDR_ANY;
+    // int sock {socket(PF_INET, SOCK_STREAM, 0)};
 
-        if (bind(sock, (sockaddr*)&sockAddr, sizeof (sockAddr)) == -1) {
-            std::cerr << "bind() error";
+    // if (sock == -1) {
+    //     std::cerr << "socket() error";
 
-            return 0;
-        }
+    //     return 0;
+    // }
 
-        if (listen(sock, 5) == -1) {
-            std::cerr << "listen() error";
-        
-            return 0;
-        }
+    // sockaddr_in sockAddr;
+    // bzero(&sockAddr, sizeof(sockAddr));
+    // sockAddr.sin_family = AF_INET;
+    // sockAddr.sin_port = htons(atoi(argv[1]));
+    // sockAddr.sin_addr.s_addr = INADDR_ANY;
 
-    while (true) {
-        //auto [clnt, clntAddr] {ca.accept(false)};
-        int clnt = accept(sock, nullptr, nullptr);
+    // if (bind(sock, (sockaddr*)&sockAddr, sizeof (sockAddr)) == -1) {
+    //     std::cerr << "bind() error";
 
-        int value {1};
-        setsockopt(clnt, SOL_SOCKET, SO_REUSEADDR, &value, sizeof(value));
+    //     return 0;
+    // }
 
-        int flag {fcntl(clnt, F_GETFL)};
-        flag |= O_NONBLOCK;
-        fcntl(clnt, F_SETFL, flag);
+    // if (listen(sock, 5) == -1) {
+    //     std::cerr << "listen() error";
+    
+    //     return 0;
+    // }
 
-        std::cout << "clnt " << clnt << " is working!\n";
+    // while (true) {
+    //     sockaddr_in clntAddr;
+    //     socklen_t addrLen;
 
-        httpWorkder(clnt).run();
-        
-        std::cout << "clnt " << clnt << " is finished!\n";
-    }  
+    //     int clnt = accept(sock, (sockaddr*)&clntAddr, &addrLen);
+
+    //     if (clnt == -1) {
+    //         std::cerr << "accept() error";
+
+    //         return 0;
+    //     }
+
+    //     int flag {fcntl(clnt, F_GETFL)};
+    //     flag |= O_NONBLOCK;
+    //     fcntl(clnt, F_SETFL, flag);
+
+    //     httpWorkder(clnt).run();
+    // }
 
     return 0;
 }

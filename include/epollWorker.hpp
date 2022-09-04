@@ -1,6 +1,7 @@
 #pragma once
 
 #include <cstddef>
+#include <cstdio>
 #include <functional>
 #include <iostream>
 #include <map>
@@ -12,8 +13,6 @@
 #include <utility>
 #include <fcntl.h>
 
-#include <co/log.h>
-
 #include "threadPool.hpp"
 #include "connAccepter.hpp"
 #include "httpWorker.hpp"
@@ -23,37 +22,35 @@ constexpr size_t maxEventSize {1024};
 
 class epollWorker {
 public:
-    explicit epollWorker(connAccepter ac_);
+    explicit epollWorker(int workPort);
 
-    template <typename FUNC>
-    void run(FUNC && func);
+    void run();
 private:
-    void wait();
+    void waitAndRead();
     void control(int operation, int sockFd, uint32_t event);
     void onListenFdRead();
     void onWorkFdRead(int workFd);
 
     int epFd;
     connAccepter ac;
-    std::function<void(int)> todo;
     threadPool tp;
 };
 
 inline
-epollWorker::epollWorker(connAccepter ac_) 
-: epFd(epoll_create(1)), ac(ac_), tp(threadsNum) {
+epollWorker::epollWorker(int workPort) 
+: epFd(epoll_create1(0)), ac(workPort), tp(threadsNum) {
     if (epFd == -1) {
         throw std::runtime_error("epoll_create() error in epollWorker.");
     }
 
+    std::cout << workPort << ' ' << htons(workPort) << '\n';
+
     control(EPOLL_CTL_ADD, ac.getListenFd(), EPOLLIN);
 }
 
-template <typename FUNC>
-void epollWorker::run(FUNC && func) {
-    todo = std::forward<FUNC>(func);
-
-    wait();
+inline
+void epollWorker::run() {
+    waitAndRead();
 }   
 
 inline
@@ -68,16 +65,24 @@ void epollWorker::control(int operation, int sockFd, uint32_t event) {
 }
 
 inline
-void epollWorker::wait() {
+void epollWorker::waitAndRead() {
     epoll_event events[maxEventSize];
 
     while (true) {
+        std::cout << "waitAndRead()!\n";
+
         int num {epoll_wait(epFd, events, maxEventSize, -1)};
+
+        std::cout << "finish waiting()!\n";
 
         for (int i {}; i != num; ++i) {
             if (events[i].data.fd == ac.getListenFd()) {
+                std::cout << "onListenFdRead()!\n";
+
                 onListenFdRead();
             } else {
+                std::cout << "onWorkFdRead(events[i].data.fd)!\n";
+
                 onWorkFdRead(events[i].data.fd);
             }
         }
@@ -86,19 +91,9 @@ void epollWorker::wait() {
 
 inline
 void epollWorker::onListenFdRead() {
-    std::pair<int, sockaddr_in> sockInfo(ac.accept());
-
-    int flag {fcntl(sockInfo.first, F_GETFL)};
-    flag |= O_NONBLOCK;
-    fcntl(sockInfo.first, F_SETFL, flag);
+    std::pair<int, sockaddr_in> sockInfo(ac.accept(false));
 
     control(EPOLL_CTL_ADD, sockInfo.first, EPOLLIN | EPOLLET);
-
-    std::string addr(inet_ntoa(sockInfo.second.sin_addr));
-    LOG << "connecting: "
-        << "socket " << sockInfo.first
-        << " addr " << addr
-        << " port " << ntohs(sockInfo.second.sin_port);
 }
 
 inline
@@ -106,8 +101,6 @@ void epollWorker::onWorkFdRead(int workFd) {
     control(EPOLL_CTL_DEL, workFd, 0);
 
     tp.submit([workFd, this]{
-        todo(workFd);
+        httpWorkder(workFd).run();
     });
-
-    LOG << "removing: " << "socket " << workFd;
 }

@@ -1,6 +1,5 @@
 #pragma once
 
-#include <asm-generic/socket.h>
 #include <fcntl.h>
 #include <stdexcept>
 #include <strings.h>
@@ -58,9 +57,8 @@ auto connAccepter::accept(bool isBlock) -> std::pair<int, sockaddr_in> {
         throw std::runtime_error("accept() error in connAccepter.");
     }
 
-    int value {1};
-
-    setsockopt(sockInfo.first, SOL_SOCKET, SO_REUSEADDR, &value, sizeof(value));
+    // int value {1};
+    // setsockopt(sockInfo.first, SOL_SOCKET, SO_REUSEADDR, &value, sizeof(value));
 
     if (!isBlock) {
         int flag {fcntl(sockInfo.first, F_GETFL)};
