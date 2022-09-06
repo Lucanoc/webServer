@@ -108,6 +108,8 @@ void httpWorkder::getUrl(char const * buffer) {
         return;
     }
 
+    std::cout << "req url : " << url << '\n';
+
     if (std::filesystem::exists(url)) {
         filePath = url;
     } else {

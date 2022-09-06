@@ -1,18 +1,40 @@
-<html>
+<!DOCTYPE html>
+<html lang="zh-CN">
 
 <head>
-<title> hello </title>
+  <meta charset="UTF-8">
+  <title>my page</title>
+  <!----CSS link----->
+  <link rel="stylesheet" href="style.css">
 </head>
 
 <body>
-<a href="https://www.cnblogs.com/lucanoc/"><button> click me </button></a>
 
-<script>
-    for (let i = 0; i != 3; ++i) {
-        console.log(i)
-    }
-</script>
-
+  <div class="card">
+    <div class="pb"></div>
+    <div class="info">
+      <h1>路卡</h1>
+      <h2>拜托, 我很弱诶</h2>
+    </div>
+    <div class="detail">
+      <div class="col">
+        <h3>11</h3>
+        <h4>文章</h4>
+      </div>
+      <div class="col">
+        <h3>4</h3>
+        <h4>关注</h4>
+      </div>
+      <div class="col">
+        <h3>514</h3>
+        <h4>粉丝</h4>
+      </div>
+    </div>
+    <div class="buttons">
+      <button id="follow"><a href="https://space.bilibili.com/34461901">＋关注</a></button>
+      <button id="message"><a href="https://github.com/Lucanoc">gayhub</a></button>
+    </div>
+  </div>
 </body>
 
 </html>
