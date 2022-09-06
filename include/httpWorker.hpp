@@ -6,13 +6,9 @@
 #include <cstring>
 #include <fcntl.h>
 #include <iostream>
-#include <fstream>
-#include <map>
-#include <sstream>
 #include <string>
 #include <sys/socket.h>
 #include <sys/types.h>
-#include <thread>
 #include <unistd.h>
 #include <filesystem>
 #include <sys/sendfile.h>

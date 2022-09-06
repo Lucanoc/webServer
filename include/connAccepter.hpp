@@ -1,5 +1,6 @@
 #pragma once
 
+#include <cstdio>
 #include <fcntl.h>
 #include <stdexcept>
 #include <strings.h>
@@ -49,9 +50,11 @@ auto connAccepter::getListenFd() const -> int {
 inline
 auto connAccepter::accept(bool isBlock) -> std::pair<int, sockaddr_in> {
     std::pair<int, sockaddr_in> sockInfo;
-    socklen_t addrLen;
+    socklen_t addrLen {};
 
     sockInfo.first = {::accept(listenFd, (sockaddr*)&sockInfo.second, &addrLen)};
+
+    perror("what happened when accept");
 
     if (sockInfo.first == -1) {
         throw std::runtime_error("accept() error in connAccepter.");

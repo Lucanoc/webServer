@@ -43,8 +43,6 @@ epollWorker::epollWorker(int workPort)
         throw std::runtime_error("epoll_create() error in epollWorker.");
     }
 
-    std::cout << workPort << ' ' << htons(workPort) << '\n';
-
     control(EPOLL_CTL_ADD, ac.getListenFd(), EPOLLIN);
 }
 
@@ -69,20 +67,12 @@ void epollWorker::waitAndRead() {
     epoll_event events[maxEventSize];
 
     while (true) {
-        std::cout << "waitAndRead()!\n";
-
         int num {epoll_wait(epFd, events, maxEventSize, -1)};
-
-        std::cout << "finish waiting()!\n";
 
         for (int i {}; i != num; ++i) {
             if (events[i].data.fd == ac.getListenFd()) {
-                std::cout << "onListenFdRead()!\n";
-
                 onListenFdRead();
             } else {
-                std::cout << "onWorkFdRead(events[i].data.fd)!\n";
-
                 onWorkFdRead(events[i].data.fd);
             }
         }
