@@ -7,6 +7,7 @@
 #include <fcntl.h>
 #include <iostream>
 #include <string>
+#include <string_view>
 #include <sys/socket.h>
 #include <sys/types.h>
 #include <unistd.h>
@@ -30,19 +31,31 @@ private:
     void sendHtml();
 
     int workSocket;
-    std::string filePath;
+    std::filesystem::path resPath;
     bool working;
     bool httpOk;
 
-    inline static std::string const badReq {
+    inline static std::string const badHead {
         "HTTP/1.1 404 Not Found\r\n"
         "content-type: text/html; charset=utf-8\r\n"
         "content-length: -1\r\n"
         "\r\n"
     };
-    inline static std::string const okReq {
+    inline static std::string const okHead {
         "HTTP/1.1 200 OK\r\n"
         "content-type: text/html; charset=utf-8\r\n"
+        "content-length: -1\r\n"
+        "\r\n"
+    };
+    inline static std::string const photoHead {
+         "HTTP/1.1 200 OK\r\n"
+        "content-type: image/jpeg\r\n"
+        "content-length: -1\r\n"
+        "\r\n"
+    };
+    inline static std::string const cssHead {
+         "HTTP/1.1 200 OK\r\n"
+        "content-type: text/css\r\n"
         "content-length: -1\r\n"
         "\r\n"
     };
@@ -55,7 +68,7 @@ httpWorkder::~httpWorkder() {
 
 inline
 httpWorkder::httpWorkder(int workSocket_)
-: workSocket(workSocket_), filePath("index.html"), working(false), httpOk(true) {}
+: workSocket(workSocket_), resPath("index.html"), working(false), httpOk(true) {}
 
 inline
 void httpWorkder::run() {
@@ -111,14 +124,16 @@ void httpWorkder::getUrl(char const * buffer) {
     std::cout << "req url : " << url << '\n';
 
     if (std::filesystem::exists(url)) {
-        filePath = url;
+        resPath = url;
     } else {
         if (strcmp(url, "") != 0) {
-            filePath = "404.html";
+            resPath = "404.html";
             
             httpOk = false;
         }
     }
+
+    std::cout << "url to be : " << resPath << '\n';
 }
 
 inline
@@ -129,15 +144,24 @@ void httpWorkder::send() {
 
 inline
 void httpWorkder::sendHttpHead () {
-    ::send(workSocket, 
-    httpOk ? okReq.c_str() : badReq.c_str(), 
-    httpOk ? okReq.size() : badReq.size(), 
-    0);
+    if(httpOk) {
+        std::filesystem::path ext(resPath.extension());
+
+        if (ext == ".html") {
+            ::send(workSocket, okHead.c_str(), okHead.size(), 0);
+        } else if (ext == ".jpeg") {
+            ::send(workSocket, photoHead.c_str(), photoHead.size(), 0);
+        } else if (ext == ".css") {
+            ::send(workSocket, cssHead.c_str(), cssHead.size(), 0);
+        }
+    } else {
+        ::send(workSocket, badHead.c_str(), badHead.size(), 0);
+    }
 }
 
 inline
 void httpWorkder::sendHtml() {
-    int htmlFile {::open(filePath.c_str(), O_RDONLY)};
+    int htmlFile {::open(resPath.c_str(), O_RDONLY)};
 
     __off_t srcSize {::lseek(htmlFile, 0, SEEK_END)};
     ::lseek(htmlFile, 0, SEEK_SET);

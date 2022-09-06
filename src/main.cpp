@@ -27,13 +27,5 @@ auto main(int argc, char const ** argv) -> int {
 
     epollWorker(atoi(argv[1])).run();
 
-    // connAccepter ca(atoi(argv[1]));
-
-    // while (true) {
-    //     std::pair<int, sockaddr_in> sockInfo(ca.accept(false));
-
-    //     httpWorkder(sockInfo.first).run();
-    // }
-
     return 0;
 }

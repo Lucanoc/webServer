@@ -53,7 +53,7 @@ h4{
   top: -45px;
   left: 50%;
   transform: translate(-50%, 0%);
-  background-image: url('./image/photo.jpeg');
+  background-image: url('photo.jpeg');
   background-position: center;
   background-size: cover;
   background-repeat: no-repeat;
@@ -127,7 +127,7 @@ button{
 }
 #message{
   background-color: #45d6f0;
-  border: 1px solid grey;
+  border: 1px solid #45d6f0;
   color: grey;
   font-weight: 500;
   transition: all 0.3s linear;

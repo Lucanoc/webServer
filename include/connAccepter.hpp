@@ -54,8 +54,6 @@ auto connAccepter::accept(bool isBlock) -> std::pair<int, sockaddr_in> {
 
     sockInfo.first = {::accept(listenFd, (sockaddr*)&sockInfo.second, &addrLen)};
 
-    perror("what happened when accept");
-
     if (sockInfo.first == -1) {
         throw std::runtime_error("accept() error in connAccepter.");
     }
